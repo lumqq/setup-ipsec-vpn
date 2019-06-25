@@ -2,7 +2,7 @@
 #
 # Script to update VPN users for both IPsec/L2TP and Cisco IPsec
 #
-# Copyright (C) 2018 Lin Song <linsongui@gmail.com>
+# Copyright (C) 2018-2019 Lin Song <linsongui@gmail.com>
 #
 # This work is licensed under the Creative Commons Attribution-ShareAlike 3.0
 # Unported License: http://creativecommons.org/licenses/by-sa/3.0/
@@ -27,7 +27,7 @@ YOUR_PASSWORDS=''
 # =====================================================
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-SYS_DT="$(date +%F-%T)"
+SYS_DT=$(date +%F-%T)
 
 exiterr()  { echo "Error: $1" >&2; exit 1; }
 conf_bk() { /bin/cp -f "$1" "$1.old-$SYS_DT" 2>/dev/null; }
@@ -65,12 +65,12 @@ if [ -z "$VPN_USERS" ] || [ -z "$VPN_PASSWORDS" ]; then
   exiterr "All VPN credentials must be specified. Edit the script and re-enter them."
 fi
 
-VPN_USERS="$(noquotes "$VPN_USERS")"
-VPN_USERS="$(onespace "$VPN_USERS")"
-VPN_USERS="$(noquotes2 "$VPN_USERS")"
-VPN_PASSWORDS="$(noquotes "$VPN_PASSWORDS")"
-VPN_PASSWORDS="$(onespace "$VPN_PASSWORDS")"
-VPN_PASSWORDS="$(noquotes2 "$VPN_PASSWORDS")"
+VPN_USERS=$(noquotes "$VPN_USERS")
+VPN_USERS=$(onespace "$VPN_USERS")
+VPN_USERS=$(noquotes2 "$VPN_USERS")
+VPN_PASSWORDS=$(noquotes "$VPN_PASSWORDS")
+VPN_PASSWORDS=$(onespace "$VPN_PASSWORDS")
+VPN_PASSWORDS=$(noquotes2 "$VPN_PASSWORDS")
 
 if printf '%s' "$VPN_USERS $VPN_PASSWORDS" | LC_ALL=C grep -q '[^ -~]\+'; then
   exiterr "VPN credentials must not contain non-ASCII characters."
@@ -81,6 +81,10 @@ case "$VPN_USERS $VPN_PASSWORDS" in
     exiterr "VPN credentials must not contain these special characters: \\ \" '"
     ;;
 esac
+
+if printf '%s' "$VPN_USERS" | tr ' ' '\n' | sort | uniq -c | grep -qv '^ *1 '; then
+  exiterr "VPN usernames must not contain duplicates."
+fi
 
 clear
 

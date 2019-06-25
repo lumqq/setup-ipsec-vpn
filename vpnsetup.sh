@@ -8,7 +8,7 @@
 # The latest version of this script is available at:
 # https://github.com/hwdsl2/setup-ipsec-vpn
 #
-# Copyright (C) 2014-2018 Lin Song <linsongui@gmail.com>
+# Copyright (C) 2014-2019 Lin Song <linsongui@gmail.com>
 # Based on the work of Thomas Sarlandie (Copyright 2012)
 #
 # This work is licensed under the Creative Commons Attribution-ShareAlike 3.0
@@ -34,7 +34,7 @@ YOUR_PASSWORD=''
 # =====================================================
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-SYS_DT="$(date +%F-%T)"
+SYS_DT=$(date +%F-%T)
 
 exiterr()  { echo "Error: $1" >&2; exit 1; }
 exiterr2() { exiterr "'apt-get install' failed."; }
@@ -48,10 +48,10 @@ check_ip() {
 
 vpnsetup() {
 
-os_type="$(lsb_release -si 2>/dev/null)"
+os_type=$(lsb_release -si 2>/dev/null)
 if [ -z "$os_type" ]; then
-  [ -f /etc/os-release  ] && os_type="$(. /etc/os-release  && printf '%s' "$ID")"
-  [ -f /etc/lsb-release ] && os_type="$(. /etc/lsb-release && printf '%s' "$DISTRIB_ID")"
+  [ -f /etc/os-release  ] && os_type=$(. /etc/os-release  && printf '%s' "$ID")
+  [ -f /etc/lsb-release ] && os_type=$(. /etc/lsb-release && printf '%s' "$DISTRIB_ID")
 fi
 if ! printf '%s' "$os_type" | head -n 1 | grep -qiF -e ubuntu -e debian -e raspbian; then
   exiterr "This script only supports Ubuntu and Debian."
@@ -69,10 +69,8 @@ if [ "$(id -u)" != 0 ]; then
   exiterr "Script must be run as root. Try 'sudo sh $0'"
 fi
 
-NET_IFACE=${VPN_NET_IFACE:-'eth0'}
-def_iface="$(route 2>/dev/null | grep '^default' | grep -o '[^ ]*$')"
-[ -z "$def_iface" ] && def_iface="$(ip -4 route list 0/0 2>/dev/null | grep -Po '(?<=dev )(\S+)')"
-
+def_iface=$(route 2>/dev/null | grep -m 1 '^default' | grep -o '[^ ]*$')
+[ -z "$def_iface" ] && def_iface=$(ip -4 route list 0/0 2>/dev/null | grep -m 1 -Po '(?<=dev )(\S+)')
 def_state=$(cat "/sys/class/net/$def_iface/operstate" 2>/dev/null)
 if [ -n "$def_state" ] && [ "$def_state" != "down" ]; then
   if ! uname -m | grep -qi '^arm'; then
@@ -83,18 +81,12 @@ if [ -n "$def_state" ] && [ "$def_state" != "down" ]; then
     esac
   fi
   NET_IFACE="$def_iface"
-fi
-
-net_state=$(cat "/sys/class/net/$NET_IFACE/operstate" 2>/dev/null)
-if [ -z "$net_state" ] || [ "$net_state" = "down" ] || [ "$NET_IFACE" = "lo" ]; then
-  printf "Error: Network interface '%s' is not available.\n" "$NET_IFACE" >&2
-  if [ -z "$VPN_NET_IFACE" ]; then
-cat 1>&2 <<EOF
-Could not detect the default network interface. Re-run this script with:
-  sudo VPN_NET_IFACE="default_interface_name" sh "$0"
-EOF
+else
+  eth0_state=$(cat "/sys/class/net/eth0/operstate" 2>/dev/null)
+  if [ -z "$eth0_state" ] || [ "$eth0_state" = "down" ]; then
+    exiterr "Could not detect the default network interface."
   fi
-  exit 1
+  NET_IFACE=eth0
 fi
 
 [ -n "$YOUR_IPSEC_PSK" ] && VPN_IPSEC_PSK="$YOUR_IPSEC_PSK"
@@ -103,9 +95,9 @@ fi
 
 if [ -z "$VPN_IPSEC_PSK" ] && [ -z "$VPN_USER" ] && [ -z "$VPN_PASSWORD" ]; then
   bigecho "VPN credentials not set by user. Generating random PSK and password..."
-  VPN_IPSEC_PSK="$(LC_CTYPE=C tr -dc 'A-HJ-NPR-Za-km-z2-9' < /dev/urandom | head -c 20)"
+  VPN_IPSEC_PSK=$(LC_CTYPE=C tr -dc 'A-HJ-NPR-Za-km-z2-9' < /dev/urandom | head -c 20)
   VPN_USER=vpnuser
-  VPN_PASSWORD="$(LC_CTYPE=C tr -dc 'A-HJ-NPR-Za-km-z2-9' < /dev/urandom | head -c 16)"
+  VPN_PASSWORD=$(LC_CTYPE=C tr -dc 'A-HJ-NPR-Za-km-z2-9' < /dev/urandom | head -c 16)
 fi
 
 if [ -z "$VPN_IPSEC_PSK" ] || [ -z "$VPN_USER" ] || [ -z "$VPN_PASSWORD" ]; then
@@ -172,31 +164,13 @@ apt-get -yq install libnss3-dev libnspr4-dev pkg-config \
   libcurl4-nss-dev flex bison gcc make libnss3-tools \
   libevent-dev ppp xl2tpd || exiterr2
 
-case "$(uname -r)" in
-  4.1[456]*)
-    if ! printf '%s' "$os_type" | head -n 1 | grep -qiF ubuntu; then
-      L2TP_VER=1.3.12
-      l2tp_dir="xl2tpd-$L2TP_VER"
-      l2tp_file="$l2tp_dir.tar.gz"
-      l2tp_url="https://github.com/xelerance/xl2tpd/archive/v$L2TP_VER.tar.gz"
-      apt-get -yq install libpcap0.8-dev || exiterr2
-      wget -t 3 -T 30 -nv -O "$l2tp_file" "$l2tp_url" || exit 1
-      /bin/rm -rf "/opt/src/$l2tp_dir"
-      tar xzf "$l2tp_file" && /bin/rm -f "$l2tp_file"
-      cd "$l2tp_dir" && make -s 2>/dev/null && PREFIX=/usr make -s install
-      cd /opt/src || exit 1
-      /bin/rm -rf "/opt/src/$l2tp_dir"
-    fi
-    ;;
-esac
-
 bigecho "Installing Fail2Ban to protect SSH..."
 
 apt-get -yq install fail2ban || exiterr2
 
 bigecho "Compiling and installing Libreswan..."
 
-SWAN_VER=3.27
+SWAN_VER=3.29
 swan_file="libreswan-$SWAN_VER.tar.gz"
 swan_url1="https://github.com/libreswan/libreswan/archive/v$SWAN_VER.tar.gz"
 swan_url2="https://download.libreswan.org/$swan_file"
@@ -210,12 +184,14 @@ cat > Makefile.inc.local <<'EOF'
 WERROR_CFLAGS =
 USE_DNSSEC = false
 USE_DH31 = false
+USE_NSS_AVA_COPY = true
+USE_NSS_IPSEC_PROFILE = false
 USE_GLIBC_KERN_FLIP_HEADERS = true
 EOF
 if [ "$(packaging/utils/lswan_detect.sh init)" = "systemd" ]; then
   apt-get -yq install libsystemd-dev || exiterr2
 fi
-NPROCS="$(grep -c ^processor /proc/cpuinfo)"
+NPROCS=$(grep -c ^processor /proc/cpuinfo)
 [ -z "$NPROCS" ] && NPROCS=1
 make "-j$((NPROCS+1))" -s base && make -s install-base
 
@@ -234,6 +210,8 @@ XAUTH_NET=${VPN_XAUTH_NET:-'192.168.43.0/24'}
 XAUTH_POOL=${VPN_XAUTH_POOL:-'192.168.43.10-192.168.43.250'}
 DNS_SRV1=${VPN_DNS_SRV1:-'8.8.8.8'}
 DNS_SRV2=${VPN_DNS_SRV2:-'8.8.4.4'}
+DNS_SRVS="\"$DNS_SRV1 $DNS_SRV2\""
+[ -n "$VPN_DNS_SRV1" ] && [ -z "$VPN_DNS_SRV2" ] && DNS_SRVS="$DNS_SRV1"
 
 # Create IPsec config
 conf_bk "/etc/ipsec.conf"
@@ -258,6 +236,7 @@ conn shared
   dpddelay=30
   dpdtimeout=120
   dpdaction=clear
+  ikev2=never
   ike=aes256-sha2,aes128-sha2,aes256-sha1,aes128-sha1,aes256-sha2;modp1024,aes128-sha1;modp1024
   phase2alg=aes_gcm-null,aes128-sha1,aes256-sha1,aes256-sha2_512,aes128-sha2,aes256-sha2
   sha2-truncbug=yes
@@ -274,7 +253,7 @@ conn xauth-psk
   auto=add
   leftsubnet=0.0.0.0/0
   rightaddresspool=$XAUTH_POOL
-  modecfgdns="$DNS_SRV1, $DNS_SRV2"
+  modecfgdns=$DNS_SRVS
   leftxauthserver=yes
   rightxauthclient=yes
   leftmodecfgserver=yes
@@ -282,7 +261,6 @@ conn xauth-psk
   modecfgpull=yes
   xauthby=file
   ike-frag=yes
-  ikev2=never
   cisco-unity=yes
   also=shared
 EOF
@@ -320,8 +298,6 @@ cat > /etc/ppp/options.xl2tpd <<EOF
 +mschap-v2
 ipcp-accept-local
 ipcp-accept-remote
-ms-dns $DNS_SRV1
-ms-dns $DNS_SRV2
 noccp
 auth
 mtu 1280
@@ -330,7 +306,14 @@ proxyarp
 lcp-echo-failure 4
 lcp-echo-interval 30
 connect-delay 5000
+ms-dns $DNS_SRV1
 EOF
+
+if [ -z "$VPN_DNS_SRV1" ] || [ -n "$VPN_DNS_SRV2" ]; then
+cat >> /etc/ppp/options.xl2tpd <<EOF
+ms-dns $DNS_SRV2
+EOF
+fi
 
 # Create VPN credentials
 conf_bk "/etc/ppp/chap-secrets"

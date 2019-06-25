@@ -2,7 +2,7 @@
 #
 # Script to delete an VPN user for both IPsec/L2TP and Cisco IPsec
 #
-# Copyright (C) 2018 Lin Song <linsongui@gmail.com>
+# Copyright (C) 2018-2019 Lin Song <linsongui@gmail.com>
 #
 # This work is licensed under the Creative Commons Attribution-ShareAlike 3.0
 # Unported License: http://creativecommons.org/licenses/by-sa/3.0/
@@ -11,7 +11,7 @@
 # know how you have improved it!
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-SYS_DT="$(date +%F-%T)"
+SYS_DT=$(date +%F-%T)
 
 exiterr()  { echo "Error: $1" >&2; exit 1; }
 conf_bk() { /bin/cp -f "$1" "$1.old-$SYS_DT" 2>/dev/null; }
