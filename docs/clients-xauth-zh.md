@@ -65,7 +65,7 @@ VPN 连接成功后，你会在 VPN Connect 状态窗口中看到 **tunnel enabl
 ## Android
 
 1. 启动 **设置** 应用程序。
-1. 在 **无线和网络** 部分单击 **更多...**。
+1. 单击 **网络和互联网**。或者，如果你使用 Android 7 或更早版本，在 **无线和网络** 部分单击 **更多...**。
 1. 单击 **VPN**。
 1. 单击 **添加VPN配置文件** 或窗口右上角的 **+**。
 1. 在 **名称** 字段中输入任意内容。
@@ -137,7 +137,7 @@ VPN 连接成功后，你可以到 <a href="https://www.ipchicken.com" target="_
 
 注： 这个协议仅适用于本文档。
 
-版权所有 (C) 2016-2019 Lin Song   
+版权所有 (C) 2016-2020 Lin Song   
 基于 <a href="https://github.com/StreisandEffect/streisand/blob/6aa6b6b2735dd829ca8c417d72eb2768a89b6639/playbooks/roles/l2tp-ipsec/templates/instructions.md.j2" target="_blank">Joshua Lund 的工作</a> (版权所有 2014-2016)
 
 本程序为自由软件，在自由软件联盟发布的<a href="https://www.gnu.org/licenses/gpl.html" target="_blank"> GNU 通用公共许可协议</a>的约束下，你可以对其进行再发布及修改。协议版本为第三版或（随你）更新的版本。
